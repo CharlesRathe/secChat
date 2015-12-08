@@ -1,7 +1,8 @@
 package secChat;
 
-import java.awt.GridLayout;
+import java.awt.*;
 import java.awt.event.*;
+
 import javax.swing.*;
 
 public class secWindow extends JFrame implements ActionListener{
@@ -15,11 +16,14 @@ public class secWindow extends JFrame implements ActionListener{
 	public secWindow()
 	{	
 		this.setSize(400, 400);
-		this.setLayout(new GridLayout(1,1));
-		this.add(panelManager);
+		Container contentPane = this.getContentPane();
+	
+		contentPane.add(panelManager, BorderLayout.SOUTH);
 		// panelManager.setLayout(optionsLayout);
+		panelManager.add(ipLabel, 2);
 		panelManager.add(optionsPanel, 2);
 		panelManager.add(chatPanel, 1);
+		pack();
 		
 	}
 	

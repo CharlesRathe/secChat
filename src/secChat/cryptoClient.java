@@ -5,18 +5,34 @@ import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.swing.*;
 
-import java.awt.BorderLayout;
-import java.awt.event.*;
+import java.awt.*;
+
+import net.java.otr4j.OtrEngineHost;
+import net.java.otr4j.OtrPolicy;
+import net.java.otr4j.session.Session;
+import net.java.otr4j.session.SessionID;
 
 
+public class cryptoClient implements OtrEngineHost{
 
-public class cryptoClient {
-
+	// Logger for logging errors/warnings etc.
+	private final static Logger logger = Logger.getLogger(cryptoClient.class.getName());
+	
 	// GUI Objects
-	private secWindow window = new secWindow();
+	private secWindow window;
+	
+	// OTR Objects
+	private Session session;
+	private OtrPolicy policy;
+	public String lastInjectedMessage;
 	
 	// Chat objects
 	private BufferedReader in;
@@ -28,33 +44,15 @@ public class cryptoClient {
 	// Server Port for application
 	private static final int appPort = 9960;
 	
-	public cryptoClient()
+	public cryptoClient(OtrPolicy p)
 	{
-
 		
-		// Event Listener
-		window.addActionListener(new ActionListener(){
-
-			/**
-			 * Action Listener encrypts, prints to output and also clears text for next message
-			 */
-			public void actionPerformed(ActionEvent e) {
-				
-				// Add Encryption Here??
-				
-				// out.println(userInput.getText());
-				// userInput.setText("");	
-			}
-		});
+		this.policy = p;
+		window = new secWindow();
+		window.setVisible(true);
+		window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		window.setSize(400,400);
 	}
-	
-	public String getUserAddress()
-	{
-		return JOptionPane.showInputDialog(frame,
-				"Please Enter IP Address of Desired User:",
-				"Welcome to cryptoChat", JOptionPane.QUESTION_MESSAGE);
-	}
-	
 	public void run()
 	{
 		
@@ -64,19 +62,41 @@ public class cryptoClient {
 	}
 	
 	
-	/**
-	 * This driver opens the GUI and connects to the crypto server with the run command
-	 * 
-	 * @param args Command line arguments
-	 */
-	public static void main(String[] args) {
+	// Generates Key Pair
+	public KeyPair getKeyPair(SessionID sess) {
+        KeyPairGenerator kg;
+        try {
+                kg = KeyPairGenerator.getInstance("DSA");
+
+        } catch (NoSuchAlgorithmException e) {
+                e.printStackTrace();
+                logger.log(Level.WARNING, "No such algorithm");
+                return null;
+        }
+        
+        logger.log(Level.INFO, "Generated Key Pair");
+        return kg.genKeyPair();
+	}
+	
+	public OtrPolicy getSessionPolicy(SessionID sess) {
+		return this.policy;
+	}
+	
+	
+	public void injectMessage(SessionID sess, String message) {
+		// Send message over connection
 		
-		cryptoClient client = new cryptoClient();
-		client.frame.setVisible(true);
-		client.frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		client.frame.setSize(1000, 400);
-		
-		// client.run();	
+	}
+	
+	
+	//Error Handling
+	
+	public void showError(SessionID sess, String error) {
+		logger.severe("Error: " + error);
+	}
+	
+	public void showWarning(SessionID sess, String warning) {
+		logger.warning("Warning: " + warning);	
 	}
 
 }

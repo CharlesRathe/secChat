@@ -20,6 +20,7 @@ public class OptionsPanel extends JPanel{
 		this.add(ipArea);
 		this.add(encryptOptions);
 		ipArea.setEditable(false);
+
 	}
 	
 	public void clearIP() {ipArea.setText("");}
