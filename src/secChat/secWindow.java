@@ -6,43 +6,61 @@ import java.awt.event.*;
 import javax.swing.*;
 
 public class secWindow extends JFrame implements ActionListener{
+
+	// GUI - Panels to add
+	private ChatPanel chatPanel = new ChatPanel();
+	private OptionsPanel optionsPanel = new OptionsPanel();
 	
-	public JLayeredPane panelManager = new JLayeredPane();
-	public OptionsPanel optionsPanel = new OptionsPanel();
-	public ChatPanel chatPanel = new ChatPanel();
-	// Initialize layout here
-	public final JLabel ipLabel = new JLabel("IP Address: ");
 	
-	public secWindow()
+	public secWindow(String s)
 	{	
-		this.setSize(400, 400);
+		super(s);
+		// Set up frame
 		Container contentPane = this.getContentPane();
-	
-		contentPane.add(panelManager, BorderLayout.SOUTH);
-		// panelManager.setLayout(optionsLayout);
-		panelManager.add(ipLabel, 2);
-		panelManager.add(optionsPanel, 2);
-		panelManager.add(chatPanel, 1);
+		contentPane.setLayout(new BorderLayout());
+		this.setSize(400, 400);
+		this.setVisible(true);
+		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		
+		// Add panels
+		contentPane.add(optionsPanel, BorderLayout.NORTH);
+		contentPane.add(chatPanel, BorderLayout.CENTER);
+		
+		// Pack
 		pack();
 		
 	}
 	
-	public void switchPanels()
-	{
-		int temp = JLayeredPane.getLayer(optionsPanel);
-		panelManager.setLayer(optionsPanel, JLayeredPane.getLayer(chatPanel));
-		panelManager.setLayer(chatPanel, temp);
-		
-		if(temp == 1)
-		{
-			chatPanel.mute();
-			
-		}
-		
-	}
+	// Sets display un-editable
+	public void mute() {chatPanel.mute();}
+	
+	// Sets IP field uneditable
+	public void muteIP() {optionsPanel.muteIP();}
+	
+	// Clears IP field
+	public void clearIP() {optionsPanel.clearIP();}
+	
+	// Sets IP field to editable
+	public void unmuteIP() {optionsPanel.unmuteIP();}
+	
+	// Sets IP field text
+	public void setIP(String s) {optionsPanel.setIP(s);}
+	
+	// Sets display to editable
+	public void unmute() {chatPanel.unmute();}
+	
+	// Clears the display
+	public void clearDisplay() {chatPanel.clearDisplay();}
+	
+	// Adds message to display
+	public void appendDisplay(String s) {chatPanel.appendDisplay(s);}
+	
+	// Clears chat text field
+	public void clearChat() {chatPanel.clearChat();}
+	
 	
 	public void actionPerformed(ActionEvent e) {
-		// TODO Auto-generated method stub
+		
 		
 	}
 }

@@ -6,21 +6,16 @@ import java.awt.*;
 
 public class OptionsPanel extends JPanel{
 
-	private String[] options = {"64", "128", "256"};
-	private JComboBox encryptOptions = new JComboBox(options);
-	
-	public final JLabel ipLabel = new JLabel("IP Address: ");
-	private JTextArea ipArea = new JTextArea();
-	
-	private FlowLayout layout = new FlowLayout();
+	private JTextField ipArea = new JTextField();
+	private BorderLayout layout = new BorderLayout();
 	
 	public OptionsPanel()
 	{
 		this.setLayout(layout);
 		this.add(ipArea);
-		this.add(encryptOptions);
-		ipArea.setEditable(false);
-
+		ipArea.setEditable(true);
+		setIP("Input desired IP here");
+	
 	}
 	
 	public void clearIP() {ipArea.setText("");}
