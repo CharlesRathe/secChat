@@ -10,7 +10,7 @@ import java.awt.*;
 
 
 
-public class cryptoClient extends secWindow{
+public class CryptoClient extends SecWindow{
 	
 	// Chat objects
 	private BufferedReader in;
@@ -23,7 +23,7 @@ public class cryptoClient extends secWindow{
 	private static final int appPort = 9960;
 
 	
-	public cryptoClient()
+	public CryptoClient()
 	{
 		super("Encrypted Chat");
 		mute();
@@ -48,7 +48,7 @@ public class cryptoClient extends secWindow{
 	
 	public void connectToServer() throws IOException
 	{
-		appendDisplay("Attempting Connection")
+		appendDisplay("Attempting Connection");
 	}
 	
 	public void getStreams()throws IOException
@@ -68,7 +68,7 @@ public class cryptoClient extends secWindow{
 	
 	public static void main(String[] args)
 	{
-		cryptoClient client = new cryptoClient();
+		CryptoClient client = new CryptoClient();
 		
 	}
 }

@@ -5,14 +5,14 @@ import java.awt.event.*;
 
 import javax.swing.*;
 
-public class secWindow extends JFrame implements ActionListener{
+public class SecWindow extends JFrame implements ActionListener{
 
 	// GUI - Panels to add
 	private ChatPanel chatPanel = new ChatPanel();
 	private OptionsPanel optionsPanel = new OptionsPanel();
 	
 	
-	public secWindow(String s)
+	public SecWindow(String s)
 	{	
 		super(s);
 		// Set up frame
@@ -36,6 +36,15 @@ public class secWindow extends JFrame implements ActionListener{
 	
 	// Sets IP field uneditable
 	public void muteIP() {optionsPanel.muteIP();}
+	
+	// Sets chat field to uneditable
+	public void muteChat() {chatPanel.muteChat();}
+	
+	// Sets chat field to editable
+	public void unmuteChat() {chatPanel.unmuteChat();}
+	
+	// Sets the text in chat field
+	public void sestChat(String m) {chatPanel.setChat(m);}
 	
 	// Clears IP field
 	public void clearIP() {optionsPanel.clearIP();}

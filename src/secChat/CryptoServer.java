@@ -11,7 +11,7 @@ import javax.swing.*;
  * @author Charles
  *
  */
-public class cryptoServer extends secWindow {
+public class CryptoServer extends SecWindow {
 	
 	// Chat Objects
 	private ObjectOutputStream output;
@@ -22,7 +22,7 @@ public class cryptoServer extends secWindow {
 	// Port Number
 	private static final int appPort = 9960;
 	
-	public cryptoServer(){
+	public CryptoServer(){
 		
 		// Initialize window
 		super("SecChat Client");

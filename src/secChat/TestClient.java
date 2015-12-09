@@ -1,6 +1,6 @@
 package secChat;
 
-public class testClient {
+public class TestClient {
 	
 	
 	

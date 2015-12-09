@@ -44,6 +44,9 @@ public class ChatPanel extends JPanel{
 	// Sets chat area to editable
 	public void unmuteChat() {chat.setEditable(true);}
 	
+	// Sets chat text
+	public void setChat(String m) {chat.setText(m);}
+	
 	// Clears the display
 	public void clearDisplay() {display.setText("");}
 	
