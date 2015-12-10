@@ -4,6 +4,7 @@
 package secChat;
 
 import java.io.*;
+import java.lang.reflect.Array;
 import java.net.*;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
@@ -12,10 +13,17 @@ import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
+import java.util.Arrays;
 import java.awt.*;
 import java.awt.event.*;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.KeyAgreement;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
+import javax.crypto.ShortBufferException;
 import javax.swing.*;
 
 /**
@@ -34,21 +42,23 @@ public class CryptoServer extends JFrame {
 	private ObjectInputStream input;
 	private ServerSocket server;
 	private Socket connection;
-	private String message;
+	private byte[] message;
 	
 	// Encryption Objects
-	private byte[] encodedPublicKey;
-	private byte[] serverPublicKey;
-	private byte[] sharedSecret;
-	private int secretLength;
+	private byte[] encodedClientPublicKey;
+	private byte[] encodedServerPublicKey;
+	private byte[] serverSharedSecret;
+	private byte[] clientSharedSecret;
+	private int secretLength = 0;
 	private KeyPair serverKeyPair;
 	private CryptoHelper cryptoHelper;
 	private PublicKey clientPublicKey;
 	private KeyAgreement keyAgreement;
+	private SecretKey serverAESKey;
 	
 	
 	// Port Number
-	private static final int appPort = 9998;
+	private static final int appPort = 9991;
 	
 	public CryptoServer(){
 		
@@ -67,7 +77,27 @@ public class CryptoServer extends JFrame {
 		textField.addActionListener(
 				new ActionListener(){
 					public void actionPerformed(ActionEvent event){
-						sendData(event.getActionCommand());
+						byte[] enc;
+						try {
+							enc = encryptMessage(event.getActionCommand());
+							sendData(enc);
+						} catch (IllegalBlockSizeException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						} catch (BadPaddingException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						} catch (NoSuchAlgorithmException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						} catch (NoSuchPaddingException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						} catch (InvalidKeyException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+
 						textField.setText("");
 					}
 				}
@@ -110,8 +140,8 @@ public class CryptoServer extends JFrame {
 				try{
 					waitForConnections();
 					getStreams();
-					if (diffieHellman())
-					{processConnection();}
+					diffieHellman();
+					processConnection();
 					
 				} catch (IOException e){displayMessage("\nConnection terminated\n");} catch (InvalidKeyException e) {
 					// TODO Auto-generated catch block
@@ -126,6 +156,15 @@ public class CryptoServer extends JFrame {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				} catch (InvalidAlgorithmParameterException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (IllegalStateException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (ShortBufferException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (NoSuchPaddingException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
@@ -156,27 +195,51 @@ public class CryptoServer extends JFrame {
 		input = new ObjectInputStream(connection.getInputStream());
 		
 		displayMessage("\nIO Streams Open\n");
-		message = "Connection Successful, Sending key";
-		sendData(message);
+
 	}
 	
-	private boolean diffieHellman() throws ClassNotFoundException, IOException, NoSuchAlgorithmException, InvalidKeySpecException, InvalidAlgorithmParameterException, InvalidKeyException
+	private void diffieHellman() throws ClassNotFoundException, IOException, NoSuchAlgorithmException, InvalidKeySpecException, InvalidAlgorithmParameterException, InvalidKeyException, IllegalStateException, ShortBufferException
 	{
 		do{
-			encodedPublicKey = (byte[])input.readObject();
-		}while(encodedPublicKey == null);
+			encodedClientPublicKey = (byte[])input.readObject();
+		}while(encodedClientPublicKey == null);
 		
-		clientPublicKey = cryptoHelper.getClientPublicKey(encodedPublicKey);
+		clientPublicKey = cryptoHelper.getClientPublicKey(encodedClientPublicKey);
+		
+		encodedClientPublicKey = null;
 		
 		serverKeyPair = cryptoHelper.getServerKeyPair(clientPublicKey);
 		keyAgreement = cryptoHelper.getKeyAgreement(serverKeyPair);
 		
-		serverPublicKey = cryptoHelper.encodeServerKey(serverKeyPair);
+		encodedServerPublicKey = cryptoHelper.encodeServerKey(serverKeyPair);
 		
-		sendKey(serverPublicKey);
+		displayMessage("Sending Encoded Key: ");
+		sendKey(encodedServerPublicKey);
 		
 		cryptoHelper.getClientKey(clientPublicKey, keyAgreement); // Do phase 1
 		
+		do{
+			secretLength = input.readInt();
+			
+		}while(secretLength == 0);
+		
+		displayMessage("Secret Length: " + secretLength);
+		
+		serverSharedSecret = new byte[secretLength];
+		
+		cryptoHelper.getServerSecret(serverSharedSecret, keyAgreement);
+		
+		secretLength = 0;
+
+		displayMessage("Server Secret: " + toHexString(serverSharedSecret));
+		
+		do{
+			clientSharedSecret = (byte[]) input.readObject();
+			System.out.println("In do loop: " + toHexString(clientSharedSecret));
+			
+		}while(clientSharedSecret == null);
+		
+		displayMessage("Client Secret: " + toHexString(clientSharedSecret));
 		
 		
 	}
@@ -186,19 +249,34 @@ public class CryptoServer extends JFrame {
 		output.writeObject(encodedKey);
 		output.flush();
 	}
+
 	
 	// Process
-	private void processConnection() throws IOException {	
+	private void processConnection() throws IOException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException {	
+		
+		keyAgreement.doPhase(clientPublicKey, true);
+		serverAESKey = keyAgreement.generateSecret("DES");
+		
+		displayMessage("Secret Key Initialized");
 		
 		displayMessage("Session started, chat is encrypted");
+		textField.setEditable(true);
+		
 		do{
 			try{
-				message = (String) input.readObject();
-				this.displayMessage(message);
+				message = (byte[]) input.readObject();
+				decryptMessage(message);
 			} catch (ClassNotFoundException classNotFoundException)
 			{
 				displayMessage("Unknown type recieved");
-			} 
+			} catch (IllegalBlockSizeException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (BadPaddingException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+
 		} while (!message.equals("CLIENT>>> TERMINATE"));
 		
 	}
@@ -220,80 +298,78 @@ public class CryptoServer extends JFrame {
 	/* Helper Functions */
 	//////////////////////
 
+	public byte[] encryptMessage(String messageToEncrypt) throws IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException
+	{
+		Cipher serverCipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
+		serverCipher.init(Cipher.ENCRYPT_MODE, serverAESKey);
+		displayMessage(messageToEncrypt);
+		byte[] clearText = messageToEncrypt.getBytes();
+		byte[] cipherText = serverCipher.doFinal(clearText);
+		return cipherText;
+	}
+	
+	public String decryptMessage(byte[] encMessage) throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException
+	{
+		displayMessage("Decrypting Message");
+		Cipher serverCipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
+		serverCipher.init(Cipher.DECRYPT_MODE,  serverAESKey);
+		
+		byte[] recovered = serverCipher.doFinal(encMessage);
+		String clearMessage = recovered.toString();
+		displayMessage(clearMessage);
+		return clearMessage;
+	}
+	
 	// Display message on screen
 	private void displayMessage(final String m)
 	{
 		SwingUtilities.invokeLater(
 				new Runnable(){
 					public void run(){
-					displayArea.append("\n" + m);
+					displayArea.append("\n" + m + "\n");
 			}
 		});
 	}
 	
 	// Sends message to client
-	private void sendData(String message){
+	private void sendData(byte[] message){
 		try{
 			
-			output.writeObject("SERVER: " + message);
+			output.writeObject(message);
 			output.flush();
-			displayMessage("Server: " + message);
 		} catch (IOException e){displayMessage("Error sending message! \n");}
 		
 	}
 	
-	///////////////////
-	// Private Class //
-	///////////////////
-	
-	class OtrEngineHostImpl implements OtrEngineHost
-	{
-		private OtrPolicy policy;
-		public String lastInjectedMessage;
-		
-		public OtrEngineHostImpl(OtrPolicy policy)
-		{
-			this.policy = policy;
-		}
+	 /*
+     * Converts a byte to hex digit and writes to the supplied buffer
+     */
+    private void byte2hex(byte b, StringBuffer buf) {
+        char[] hexChars = { '0', '1', '2', '3', '4', '5', '6', '7', '8',
+                            '9', 'A', 'B', 'C', 'D', 'E', 'F' };
+        int high = ((b & 0xf0) >> 4);
+        int low = (b & 0x0f);
+        buf.append(hexChars[high]);
+        buf.append(hexChars[low]);
+    }
 
-	
-		public KeyPair getKeyPair(SessionID arg0) {
-            KeyPairGenerator kg;
-            try {
-                    kg = KeyPairGenerator.getInstance("RSA");
 
-            } catch (NoSuchAlgorithmException e) {
-                    e.printStackTrace();
-                    return null;
-            }
+    /*
+     * Converts a byte array to hex string
+     */
+    private String toHexString(byte[] block) {
+        StringBuffer buf = new StringBuffer();
 
-            return kg.genKeyPair();
-		}
-	
-		
-		public OtrPolicy getSessionPolicy(SessionID arg0) {
-			return this.policy;
-		}
-	
-		
-		public void injectMessage(SessionID id, String message) {
-			sendData(message);
-			
-		}
-	
-		
-		public void showError(SessionID arg0, String arg1) {
-			// TODO Auto-generated method stub
-			
-		}
-	
-		
-		public void showWarning(SessionID arg0, String arg1) {
-			// TODO Auto-generated method stub
-			
-		}
+        int len = block.length;
 
-	}
+        for (int i = 0; i < len; i++) {
+             byte2hex(block[i], buf);
+             if (i < len-1) {
+                 buf.append(":");
+             }
+        }
+        return buf.toString();
+    }
 
 	
 

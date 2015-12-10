@@ -15,6 +15,7 @@ import java.security.spec.InvalidParameterSpecException;
 import java.security.spec.X509EncodedKeySpec;
 
 import javax.crypto.KeyAgreement;
+import javax.crypto.ShortBufferException;
 import javax.crypto.interfaces.DHPublicKey;
 import javax.crypto.spec.DHParameterSpec;
 
@@ -61,6 +62,7 @@ public class CryptoHelper {
 	public byte[] encodeKey(KeyPair keyPair)
 	{
 		 byte[] clientPubKeyEnc = keyPair.getPublic().getEncoded();
+		 System.out.println("client public key encoded");
 		 return clientPubKeyEnc;	
 	}
 	
@@ -70,9 +72,9 @@ public class CryptoHelper {
         KeyFactory serverKeyFac = KeyFactory.getInstance("DH");
         x509KeySpec = new X509EncodedKeySpec
             (publicKey);
-        PublicKey serverPubKey = serverKeyFac.generatePublic(x509KeySpec);
+        PublicKey clientPubKey = serverKeyFac.generatePublic(x509KeySpec);
 		
-        return serverPubKey;
+        return clientPubKey;
 	}
 	
 	public KeyPair getServerKeyPair(PublicKey publicKey) throws NoSuchAlgorithmException, InvalidAlgorithmParameterException
@@ -100,7 +102,7 @@ public class CryptoHelper {
 	}
 	
 	////////////////////////////////////////////
-	public void getServerKey(byte[] encodedKey, KeyAgreement clientKeyAgree) throws InvalidKeyException, IllegalStateException, InvalidKeySpecException, NoSuchAlgorithmException
+	public PublicKey getServerKey(byte[] encodedKey, KeyAgreement clientKeyAgree) throws InvalidKeyException, IllegalStateException, InvalidKeySpecException, NoSuchAlgorithmException
 	{
 		
         KeyFactory clientKeyFac = KeyFactory.getInstance("DH");
@@ -108,6 +110,7 @@ public class CryptoHelper {
         PublicKey serverPublicKey = clientKeyFac.generatePublic(x509KeySpec);
         System.out.println("client: Execute PHASE1 ...");
         clientKeyAgree.doPhase(serverPublicKey, true);
+        return serverPublicKey;
 	}
 	
 	public void getClientKey(PublicKey clientKey, KeyAgreement serverKeyAgree) throws InvalidKeyException, IllegalStateException
@@ -126,6 +129,12 @@ public class CryptoHelper {
 	public int getSecretLength(byte[] sharedSecret)
 	{
 		int length = sharedSecret.length;
+		return length;
+	}
+	
+	public int getServerSecret(byte[] sharedSecretBuffer, KeyAgreement keyAgree) throws IllegalStateException, ShortBufferException
+	{
+		int length =  keyAgree.generateSecret(sharedSecretBuffer, 0);
 		return length;
 	}
 	
