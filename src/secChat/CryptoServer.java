@@ -3,12 +3,19 @@
  */
 package secChat;
 
-import java.awt.BorderLayout;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.*;
 import java.net.*;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.awt.*;
+import java.awt.event.*;
 
+import javax.crypto.KeyAgreement;
 import javax.swing.*;
 
 /**
@@ -29,13 +36,27 @@ public class CryptoServer extends JFrame {
 	private Socket connection;
 	private String message;
 	
+	// Encryption Objects
+	private byte[] encodedPublicKey;
+	private byte[] serverPublicKey;
+	private byte[] sharedSecret;
+	private int secretLength;
+	private KeyPair serverKeyPair;
+	private CryptoHelper cryptoHelper;
+	private PublicKey clientPublicKey;
+	private KeyAgreement keyAgreement;
+	
+	
 	// Port Number
-	private static final int appPort = 9960;
+	private static final int appPort = 9998;
 	
 	public CryptoServer(){
 		
 		// Initialize window
 		super("SecChat Server");
+		
+		// Encryption initialization
+		cryptoHelper = new CryptoHelper();
 		
 		//GUI Setup
 		textField = new JTextField();
@@ -89,10 +110,26 @@ public class CryptoServer extends JFrame {
 				try{
 					waitForConnections();
 					getStreams();
-					processConnection();
-					// verifyConnection();
+					if (diffieHellman())
+					{processConnection();}
 					
-				} catch (IOException e){displayMessage("\nConnection terminated\n");}
+				} catch (IOException e){displayMessage("\nConnection terminated\n");} catch (InvalidKeyException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (ClassNotFoundException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (NoSuchAlgorithmException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (InvalidKeySpecException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (InvalidAlgorithmParameterException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				
 				finally{
 					closeConnection();
 				}
@@ -119,18 +156,41 @@ public class CryptoServer extends JFrame {
 		input = new ObjectInputStream(connection.getInputStream());
 		
 		displayMessage("\nIO Streams Open\n");
-	}
-	
-	
-	// Encryption
-	private void processConnection() throws IOException {
-		
-		// Send connection successful message
 		message = "Connection Successful, Sending key";
 		sendData(message);
+	}
+	
+	private boolean diffieHellman() throws ClassNotFoundException, IOException, NoSuchAlgorithmException, InvalidKeySpecException, InvalidAlgorithmParameterException, InvalidKeyException
+	{
+		do{
+			encodedPublicKey = (byte[])input.readObject();
+		}while(encodedPublicKey == null);
+		
+		clientPublicKey = cryptoHelper.getClientPublicKey(encodedPublicKey);
+		
+		serverKeyPair = cryptoHelper.getServerKeyPair(clientPublicKey);
+		keyAgreement = cryptoHelper.getKeyAgreement(serverKeyPair);
+		
+		serverPublicKey = cryptoHelper.encodeServerKey(serverKeyPair);
+		
+		sendKey(serverPublicKey);
+		
+		cryptoHelper.getClientKey(clientPublicKey, keyAgreement); // Do phase 1
 		
 		
 		
+	}
+	
+	private void sendKey(byte[] encodedKey) throws IOException
+	{
+		output.writeObject(encodedKey);
+		output.flush();
+	}
+	
+	// Process
+	private void processConnection() throws IOException {	
+		
+		displayMessage("Session started, chat is encrypted");
 		do{
 			try{
 				message = (String) input.readObject();
@@ -181,6 +241,60 @@ public class CryptoServer extends JFrame {
 		} catch (IOException e){displayMessage("Error sending message! \n");}
 		
 	}
+	
+	///////////////////
+	// Private Class //
+	///////////////////
+	
+	class OtrEngineHostImpl implements OtrEngineHost
+	{
+		private OtrPolicy policy;
+		public String lastInjectedMessage;
+		
+		public OtrEngineHostImpl(OtrPolicy policy)
+		{
+			this.policy = policy;
+		}
+
+	
+		public KeyPair getKeyPair(SessionID arg0) {
+            KeyPairGenerator kg;
+            try {
+                    kg = KeyPairGenerator.getInstance("RSA");
+
+            } catch (NoSuchAlgorithmException e) {
+                    e.printStackTrace();
+                    return null;
+            }
+
+            return kg.genKeyPair();
+		}
+	
+		
+		public OtrPolicy getSessionPolicy(SessionID arg0) {
+			return this.policy;
+		}
+	
+		
+		public void injectMessage(SessionID id, String message) {
+			sendData(message);
+			
+		}
+	
+		
+		public void showError(SessionID arg0, String arg1) {
+			// TODO Auto-generated method stub
+			
+		}
+	
+		
+		public void showWarning(SessionID arg0, String arg1) {
+			// TODO Auto-generated method stub
+			
+		}
+
+	}
+
 	
 
 }

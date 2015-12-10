@@ -3,7 +3,12 @@ package secChat;
 
 import java.io.*;
 import java.net.*;
+import java.security.*;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.InvalidParameterSpecException;
 
+import javax.crypto.KeyAgreement;
+import javax.crypto.spec.DHParameterSpec;
 import javax.swing.*;
 
 import java.awt.*;
@@ -26,13 +31,27 @@ public class CryptoClient extends JFrame{
 	private String server = "127.0.0.1";
 	private String message = "";
 	
+	//Encryption Objects
+	private CryptoHelper cryptoHelper;
+	private KeyPair clientKeyPair;
+	private KeyAgreement keyAgreement;
+	private byte[] encodedPublicKey;
+	private byte[] encodedServerKey;
+	private byte[] sharedSecret;
+	private int secretLength;
+	private PublicKey serverPublicKey;
+	
+
 	// Server Port for application
-	private static final int appPort = 9960;
+	private static final int appPort = 9998;
 
 	
 	public CryptoClient()
 	{
 		super("Encrypted Chat");
+		
+		//Encryption Initialization
+		cryptoHelper = new CryptoHelper();
 		
 		// GUI Setup
 		textField = new JTextField();
@@ -69,18 +88,78 @@ public class CryptoClient extends JFrame{
 	
 	public void run()
 	{
+		
 		// Catch IO Exception on setup
 		try{
 			connectToServer();
 			getStreams();
-			processConnection();
+			if (diffieHellman()){
+			processConnection();}
 			
 		} catch(EOFException e){}
-		catch(IOException io) {}
+		catch(IOException io) {} catch (InvalidKeyException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (NoSuchAlgorithmException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InvalidParameterSpecException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InvalidAlgorithmParameterException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IllegalStateException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InvalidKeySpecException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		finally{closeConnection();}
 		
 	}
 	
+	private boolean diffieHellman() throws NoSuchAlgorithmException, InvalidParameterSpecException, InvalidAlgorithmParameterException, InvalidKeyException, IOException, ClassNotFoundException, IllegalStateException, InvalidKeySpecException {
+		 DHParameterSpec dh = cryptoHelper.getAlgorithmParameters();
+		 clientKeyPair = cryptoHelper.genKeyPair(dh);
+		 keyAgreement = cryptoHelper.getKeyAgreement(clientKeyPair);
+		 encodedPublicKey = cryptoHelper.encodeKey(clientKeyPair);
+		 
+		 sendPublicKey(encodedPublicKey);
+		 
+		 do{
+			 encodedServerKey = (byte[])input.readObject();
+			 displayMessage("Got server public key");
+			 
+		 }while(encodedServerKey == null);
+		 
+		 cryptoHelper.getServerKey(encodedServerKey, keyAgreement);
+		 
+		 sharedSecret = cryptoHelper.getSharedSecret(keyAgreement);
+		 secretLength = cryptoHelper.getSecretLength(sharedSecret);
+		 
+		 sendLength(secretLength);
+		 
+		return true;
+	}
+	
+	private void sendPublicKey(byte[] publicKey) throws IOException
+	{
+		output.writeObject(publicKey);
+		output.flush();
+	}
+	
+	private void sendLength(int secretLength) throws IOException
+	{
+		output.writeInt(secretLength);
+		output.flush();
+	}
+
+
 	// Connects to server (Hard-coded right now to be on this computer)
 	public void connectToServer() throws IOException
 	{
@@ -107,6 +186,7 @@ public class CryptoClient extends JFrame{
 		// Display if successful
 		displayMessage("Streams successfully set up");
 	}
+	
 	
 	public void processConnection() throws IOException
 	{
@@ -176,4 +256,6 @@ public class CryptoClient extends JFrame{
 		client.run();
 		
 	}
+
+	
 }
